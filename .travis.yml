@@ -1,0 +1,35 @@
+sudo: required
+services:
+  - docker
+before_install:
+  - docker build -t ryanbraving/complex-react -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run -e CI=true ryanbraving/complex-react npm run test
+
+after_success:
+  - docker build -t ryanbraving/multi-client ./client
+  - docker build -t ryanbraving/multi-nginx ./nginx
+  - docker build -t ryanbraving/multi-server ./server
+  - docker build -t ryanbraving/multi-worker ./worker
+  # Log in to the docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # Take those images and push them to docker hub
+  - docker push ryanbraving/multi-client
+  - docker push ryanbraving/multi-nginx
+  - docker push ryanbraving/multi-server
+  - docker push ryanbraving/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: "us-west-2"
+  app: "multi-docker"
+  env: "Multi-docker-env"
+  bucket_name: "elasticbeanstalk-us-west-2-038933440787"
+  bucket_path: "multi-docker"
+  on:
+    branch: main
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY
+
+
